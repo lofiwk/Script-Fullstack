@@ -1,9 +1,11 @@
 #Requires AutoHotkey v2.0
+#Warn VarUnset, Off
 
 ; =================================================================================
-;       SCRIPT PARA CREAR ENTORNO FULLSTACK (v4.0)
+;       SCRIPT PARA CREAR ENTORNO FULLSTACK (v7.0)
 ;       - Inicio: Ctrl + Shift + N (crear estructura completa y abrir en VS Code)
 ;       - Fin: Ctrl + Shift + W (guardar README, cerrar VS Code con opción de limpieza)
+;       - Compartir: Ctrl + Shift + S (generar sharepack.zip + sharepack.md)
 ; =================================================================================
 
 ; --- Configuración ---
@@ -21,6 +23,11 @@ global currentProjectPath := ""
 ; === HOTKEY: GUARDAR README Y CERRAR TODO ===
 ^+w::{
     CloseProject()
+}
+
+; === HOTKEY: GENERAR SHAREPACK ===
+^+s::{
+    GenerateSharePack()
 }
 
 ; --- Función: Crear Nuevo Proyecto ---
@@ -82,7 +89,7 @@ CreateNewProject() {
     htmlContent .= '    <link rel="stylesheet" href="css/style.css">`n'
     htmlContent .= '</head>`n'
     htmlContent .= '<body>`n'
-    htmlContent .= '    <h1>¡Proyecto Fullstack Iniciado!</h1>`n'
+    htmlContent .= '    <h1>Proyecto Fullstack Iniciado</h1>`n'
     htmlContent .= '    <p>Edita este archivo en <code>/client/index.html</code></p>`n'
     htmlContent .= '`n'
     htmlContent .= '    <script src="js/main.js"></script>`n'
@@ -328,5 +335,287 @@ CleanProjectKeepTimestamp() {
         ToolTip()
     } catch as err {
         MsgBox("❌ Error al limpiar proyecto: " . err.Message)
+    }
+}
+
+; =================================================================================
+;       NUEVA FUNCIONALIDAD: GENERAR SHAREPACK
+; =================================================================================
+
+; --- Configuración para SharePack ---
+TEXT_EXTS := ".txt,.md,.html,.css,.js,.json,.xml,.svg,.yaml,.yml,.ini,.conf,.sh,.bat,.ps1,.py,.ahk,.c,.cpp,.h,.java,.cs,.php,.rb,.go,.rs,.ts,.tsx,.jsx,.vue,.sql"
+SHARE_SNIPPET_MAX := 204800  ; 200 KB max por archivo
+
+; --- Función: Generar SharePack ---
+GenerateSharePack() {
+    global currentProjectPath
+    
+    if (currentProjectPath == "" || !DirExist(currentProjectPath)) {
+        ToolTip("no hay proyecto activo para compartir")
+        Sleep(2000)
+        ToolTip()
+        return
+    }
+    
+    ToolTip("generando sharepack...")
+    
+    ; Rutas de salida
+    zipPath := currentProjectPath . "\sharepack.zip"
+    mdPath := currentProjectPath . "\sharepack.md"
+    
+    ; Eliminar archivos previos si existen
+    if FileExist(zipPath) {
+        try {
+            FileDelete(zipPath)
+        }
+    }
+    if FileExist(mdPath) {
+        try {
+            FileDelete(mdPath)
+        }
+    }
+    
+    ; === PASO 1: CREAR ZIP ===
+    success := CreateZipArchive(currentProjectPath, zipPath)
+    
+    if (!success) {
+        ToolTip("error al crear el zip")
+        Sleep(2000)
+        ToolTip()
+        return
+    }
+    
+    ; === PASO 2: CREAR MARKDOWN ===
+    CreateMarkdownReport(currentProjectPath, mdPath)
+    
+    ToolTip("sharepack generado: sharepack.zip y sharepack.md")
+    Sleep(3000)
+    ToolTip()
+}
+
+; --- Función: Crear ZIP usando PowerShell ---
+CreateZipArchive(sourcePath, destZip) {
+    ; Comando PowerShell que funciona
+    psCmd := 'Get-ChildItem -Path "' . sourcePath . '" -Recurse -Exclude "sharepack.zip","sharepack.md" | ForEach-Object { $_.FullName } | Compress-Archive -DestinationPath "' . destZip . '" -Force'
+    
+    try {
+        RunWait('powershell.exe -NoProfile -Command "' . psCmd . '"', , "Hide")
+        
+        if FileExist(destZip) {
+            return true
+        } else {
+            return false
+        }
+    } catch {
+        return false
+    }
+}
+
+; --- Función: Crear reporte Markdown ---
+CreateMarkdownReport(projectPath, outputMd) {
+    global TEXT_EXTS, SHARE_SNIPPET_MAX
+    
+    ; Backticks programáticos
+    bt := Chr(96)
+    fence := bt . bt . bt
+    
+    ; Iniciar contenido markdown
+    md := "# SharePack - Proyecto Completo`n`n"
+    md .= "**Generado:** " . FormatTime(, "dd/MM/yyyy HH:mm:ss") . "`n"
+    md .= "**Ruta:** " . projectPath . "`n`n"
+    md .= "---`n`n"
+    
+    ; === ÁRBOL DE DIRECTORIOS ===
+    md .= "## Estructura del Proyecto`n`n"
+    md .= fence . "text`n"
+    md .= BuildTreeStructure(projectPath, projectPath)
+    md .= "`n" . fence . "`n`n"
+    md .= "---`n`n"
+    
+    ; === CONTENIDO DE ARCHIVOS ===
+    md .= "## Contenido de Archivos`n`n"
+    
+    textFiles := []
+    binaryFiles := []
+    
+    ; Recorrer todos los archivos
+    Loop Files, projectPath . "\*.*", "FR" {
+        relativePath := StrReplace(A_LoopFileFullPath, projectPath . "\", "")
+        
+        ; Saltar los propios sharepack
+        if (relativePath = "sharepack.zip" || relativePath = "sharepack.md") {
+            continue
+        }
+        
+        ext := SubStr(A_LoopFileName, InStr(A_LoopFileName, ".",, -1))
+        
+        if (InStr(TEXT_EXTS, ext)) {
+            textFiles.Push({path: relativePath, full: A_LoopFileFullPath, size: A_LoopFileSize})
+        } else {
+            binaryFiles.Push({path: relativePath, full: A_LoopFileFullPath, size: A_LoopFileSize})
+        }
+    }
+    
+    ; === ARCHIVOS DE TEXTO ===
+    if (textFiles.Length > 0) {
+        md .= "### Archivos de Texto`n`n"
+        
+        for index, file in textFiles {
+            md .= "#### " . file.path . "`n`n"
+            
+            try {
+                content := FileRead(file.full, "UTF-8")
+                
+                ; Truncar si es muy largo
+                if (StrLen(content) > SHARE_SNIPPET_MAX) {
+                    content := SubStr(content, 1, SHARE_SNIPPET_MAX) . "`n`n... [truncado - archivo muy largo]"
+                }
+                
+                ; Detectar extensión para syntax highlighting
+                ext := SubStr(file.path, InStr(file.path, ".",, -1) + 1)
+                lang := GetLanguageForExtension(ext)
+                
+                md .= fence . lang . "`n"
+                md .= content
+                md .= "`n" . fence . "`n`n"
+            } catch {
+                md .= "*[error al leer archivo]*`n`n"
+            }
+        }
+    }
+    
+    ; === ARCHIVOS BINARIOS ===
+    if (binaryFiles.Length > 0) {
+        md .= "### Archivos Binarios`n`n"
+        md .= "| Archivo | Tamaño | SHA-256 |`n"
+        md .= "|---------|--------|---------|`n"
+        
+        for index, file in binaryFiles {
+            hash := GetFileSHA256(file.full)
+            sizeStr := FormatFileSize(file.size)
+            md .= "| " . file.path . " | " . sizeStr . " | " . hash . " |`n"
+        }
+        md .= "`n"
+    }
+    
+    ; Escribir archivo markdown
+    try {
+        FileAppend(md, outputMd, "UTF-8")
+    } catch as err {
+        MsgBox("error al crear markdown: " . err.Message)
+    }
+}
+
+; --- Función: Construir árbol de estructura ---
+BuildTreeStructure(rootPath, currentPath, prefix := "") {
+    tree := ""
+    
+    items := []
+    Loop Files, currentPath . "\*", "FD" {
+        ; Saltar sharepack
+        if (A_LoopFileName = "sharepack.zip" || A_LoopFileName = "sharepack.md") {
+            continue
+        }
+        items.Push({name: A_LoopFileName, isDir: (A_LoopFileAttrib ~= "D"), full: A_LoopFileFullPath})
+    }
+    
+    ; Ordenar: carpetas primero, luego archivos
+    items := SortItems(items)
+    
+    for index, item in items {
+        isLast := (index = items.Length)
+        connector := isLast ? "└── " : "├── "
+        
+        tree .= prefix . connector . item.name
+        
+        if (item.isDir) {
+            tree .= "/`n"
+            newPrefix := prefix . (isLast ? "    " : "│   ")
+            tree .= BuildTreeStructure(rootPath, item.full, newPrefix)
+        } else {
+            tree .= "`n"
+        }
+    }
+    
+    return tree
+}
+
+; --- Función: Ordenar items (carpetas primero) ---
+SortItems(items) {
+    dirs := []
+    files := []
+    
+    for index, item in items {
+        if (item.isDir) {
+            dirs.Push(item)
+        } else {
+            files.Push(item)
+        }
+    }
+    
+    result := []
+    for index, dir in dirs {
+        result.Push(dir)
+    }
+    for index, file in files {
+        result.Push(file)
+    }
+    
+    return result
+}
+
+; --- Función: Obtener lenguaje para syntax highlighting ---
+GetLanguageForExtension(ext) {
+    switch ext {
+        case "js", "jsx": return "javascript"
+        case "ts", "tsx": return "typescript"
+        case "py": return "python"
+        case "html": return "html"
+        case "css": return "css"
+        case "json": return "json"
+        case "xml", "svg": return "xml"
+        case "md": return "markdown"
+        case "sh": return "bash"
+        case "bat": return "batch"
+        case "ps1": return "powershell"
+        case "sql": return "sql"
+        case "yaml", "yml": return "yaml"
+        case "c", "h": return "c"
+        case "cpp": return "cpp"
+        case "cs": return "csharp"
+        case "java": return "java"
+        case "php": return "php"
+        case "rb": return "ruby"
+        case "go": return "go"
+        case "rs": return "rust"
+        case "ahk": return "autohotkey"
+        default: return "text"
+    }
+}
+
+; --- Función: Calcular SHA-256 de un archivo ---
+GetFileSHA256(filePath) {
+    ; Usar PowerShell para obtener el hash
+    psCmd := '(Get-FileHash -Path "' . filePath . '" -Algorithm SHA256).Hash'
+    result := ""
+    
+    try {
+        result := ComObjCreate("WScript.Shell").Exec('powershell.exe -NoProfile -Command "' . psCmd . '"').StdOut.ReadAll()
+        return Trim(result)
+    } catch {
+        return "error"
+    }
+}
+
+; --- Función: Formatear tamaño de archivo ---
+FormatFileSize(bytes) {
+    if (bytes < 1024) {
+        return bytes . " B"
+    } else if (bytes < 1048576) {
+        return Round(bytes / 1024, 1) . " KB"
+    } else if (bytes < 1073741824) {
+        return Round(bytes / 1048576, 1) . " MB"
+    } else {
+        return Round(bytes / 1073741824, 2) . " GB"
     }
 }
