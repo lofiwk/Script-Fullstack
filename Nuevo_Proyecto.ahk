@@ -159,39 +159,38 @@ CreateNewProject() {
     ; 6. README.md
     timestampFull := FormatTime(, "dd/MM/yy HH:mm:ss")
     
-    readmeContent := "# Proyecto: " . newFolderName . "`n`n"
-    readmeContent .= "## 📅 Fecha de creación`n"
-    readmeContent .= timestampFull . "`n`n"
-    readmeContent .= "## 📍 Ruta del proyecto`n"
-    readmeContent .= "🗂️ **Raíz:** " . fullFolderPath . "`n"
-    readmeContent .= "🎨 **Frontend:** " . fullFolderPath . "\client`n"
-    readmeContent .= "⚙️ **Backend:** " . fullFolderPath . "\server`n"
-    readmeContent .= "📚 **Documentación:** " . fullFolderPath . "\docs`n`n"
+    readmeContent := "# " . newFolderName . "`n`n"
+    readmeContent .= "creado: " . timestampFull . "`n`n"
+    readmeContent .= "rutas:`n"
+    readmeContent .= "  raiz:          " . fullFolderPath . "`n"
+    readmeContent .= "  frontend:      " . fullFolderPath . "\client`n"
+    readmeContent .= "  backend:       " . fullFolderPath . "\server`n"
+    readmeContent .= "  documentacion: " . fullFolderPath . "\docs`n`n"
     readmeContent .= "---`n`n"
-    readmeContent .= "## 🗂️ Estructura del proyecto`n`n"
-    readmeContent .= "- **`/client`**`n"
-    readmeContent .= "  Frontend: interfaz de usuario (HTML, CSS, JavaScript).`n"
-    readmeContent .= "  - `/css` → estilos`n"
-    readmeContent .= "  - `/js` → lógica interactiva`n"
-    readmeContent .= "  - `/assets/images` → imágenes, diagramas, recursos visuales`n`n"
-    readmeContent .= "- **`/server`**`n"
-    readmeContent .= "  Backend: lógica del servidor, API, rutas.`n"
-    readmeContent .= "  - `server.js` → punto de entrada`n"
-    readmeContent .= "  - `/routes` → endpoints (a crear según necesidad)`n`n"
-    readmeContent .= "- **`/docs`**`n"
-    readmeContent .= "  Documentación adicional: anotaciones, esquemas de red, wireframes, enunciados.`n`n"
-    readmeContent .= "- **`.gitignore`**`n"
-    readmeContent .= "  Archivos excluidos de control de versiones.`n`n"
+    readmeContent .= "estructura:`n`n"
+    readmeContent .= "/client`n"
+    readmeContent .= "  html, css, js. lo usual.`n"
+    readmeContent .= "  /css - estilos`n"
+    readmeContent .= "  /js - scripts`n"
+    readmeContent .= "  /assets/images - imagenes si es que las hay`n`n"
+    readmeContent .= "/server`n"
+    readmeContent .= "  el backend. node probablemente.`n"
+    readmeContent .= "  server.js - arranca desde aca`n"
+    readmeContent .= "  /routes - endpoints cuando los necesites`n`n"
+    readmeContent .= "/docs`n"
+    readmeContent .= "  diagramas, anotaciones, lo que sea que necesites documentar`n`n"
+    readmeContent .= ".gitignore`n"
+    readmeContent .= "  ya sabes para que es`n`n"
     readmeContent .= "---`n`n"
-    readmeContent .= "## 🎯 Propósito del proyecto`n"
-    readmeContent .= "<!-- COMPLETAR: Describe brevemente el objetivo de este proyecto -->`n`n"
-    readmeContent .= "## ▶️ Cómo usar`n"
-    readmeContent .= "1. Abre la carpeta en VS Code.`n"
-    readmeContent .= "2. Edita los archivos en `/client` para el frontend.`n"
-    readmeContent .= "3. (Opcional) Configura el backend en `/server`.`n"
-    readmeContent .= "4. Guarda diagramas o capturas en `/docs` o `/client/assets/images`.`n`n"
+    readmeContent .= "proposito:`n"
+    readmeContent .= "[completa esto cuando sepas que estas haciendo]`n`n"
+    readmeContent .= "uso:`n"
+    readmeContent .= "  abre en vscode`n"
+    readmeContent .= "  edita /client para frontend`n"
+    readmeContent .= "  /server si necesitas backend`n"
+    readmeContent .= "  guarda cosas en /docs`n`n"
     readmeContent .= "---`n"
-    readmeContent .= "*Generado automáticamente por el script de entorno de desarrollo.*`n"
+    readmeContent .= "generado automaticamente. obviamente.`n"
     
     try {
         FileAppend(readmeContent, fullFolderPath . "\README.md", "UTF-8")
@@ -202,11 +201,11 @@ CreateNewProject() {
     ; === ABRIR VS CODE ===
     if (FileExist(vsCodePath)) {
         Run('"' . vsCodePath . '" "' . fullFolderPath . '"')
-        ToolTip("✅ Proyecto '" . newFolderName . "' creado exitosamente`nEstructura fullstack lista para usar")
+        ToolTip("proyecto '" . newFolderName . "' creado. estructura lista.")
         Sleep(3000)
         ToolTip()
     } else {
-        MsgBox("❌ Error: No se encontró VS Code en:`n" . vsCodePath . "`n`nVerifica la ruta en el script.`n`n⚠️ El proyecto se creó correctamente, pero no se pudo abrir VS Code.")
+        MsgBox("no se encontro vscode en:`n" . vsCodePath . "`n`nel proyecto esta ahi de todas formas.")
     }
 }
 
@@ -216,7 +215,7 @@ CloseProject() {
     
     ; Verificar si hay un proyecto activo
     if (currentProjectPath == "") {
-        ToolTip("⚠️ No hay proyecto activo para cerrar")
+        ToolTip("no hay proyecto activo")
         Sleep(2000)
         ToolTip()
         return
@@ -247,12 +246,12 @@ CloseProject() {
         Sleep(500)
         
         ; Preguntar si desea eliminar todo excepto el README con timestamp
-        result := MsgBox("¿Desea eliminar todo el proyecto excepto el timestamp en README.md?`n`n(Y) Sí, eliminar archivos`n(N) No, mantener todo", "Limpieza de proyecto", "YesNo 32")
+        result := MsgBox("eliminar todo excepto el timestamp?`n`ny = si`nn = no", "limpieza", "YesNo")
         
         if (result = "Yes") {
             CleanProjectKeepTimestamp()
         } else {
-            ToolTip("✅ Proyecto cerrado. Archivos conservados.")
+            ToolTip("proyecto cerrado. archivos intactos.")
             Sleep(2000)
             ToolTip()
         }
@@ -261,7 +260,7 @@ CloseProject() {
         currentProjectPath := ""
     } else {
         ; Si VS Code no está abierto, preguntar igualmente
-        result := MsgBox("¿Desea eliminar todo el proyecto excepto el timestamp en README.md?`n`n(Y) Sí, eliminar archivos`n(N) No, mantener todo", "Limpieza de proyecto", "YesNo 32")
+        result := MsgBox("eliminar todo excepto el timestamp?`n`ny = si`nn = no", "limpieza", "YesNo")
         
         if (result = "Yes") {
             CleanProjectKeepTimestamp()
@@ -276,7 +275,7 @@ CleanProjectKeepTimestamp() {
     global currentProjectPath
     
     if (currentProjectPath == "" || !DirExist(currentProjectPath)) {
-        ToolTip("⚠️ No se puede limpiar: ruta de proyecto no válida")
+        ToolTip("ruta invalida. no se puede limpiar.")
         Sleep(2000)
         ToolTip()
         return
@@ -291,13 +290,8 @@ CleanProjectKeepTimestamp() {
             content := FileRead(readmePath, "UTF-8")
             ; Buscar la línea del timestamp
             Loop Parse, content, "`n", "`r" {
-                if (InStr(A_LoopField, "## 📅 Fecha de creación")) {
+                if (InStr(A_LoopField, "creado:")) {
                     timestampLine := A_LoopField
-                    ; Leer la siguiente línea que contiene el timestamp
-                    continue
-                }
-                if (timestampLine != "" && A_LoopField != "") {
-                    timestampLine .= "`n" . A_LoopField
                     break
                 }
             }
@@ -306,7 +300,7 @@ CleanProjectKeepTimestamp() {
     
     ; Si no se encontró timestamp, usar uno genérico
     if (timestampLine == "") {
-        timestampLine := "## 📅 Fecha de creación`n" . FormatTime(, "dd/MM/yy HH:mm:ss")
+        timestampLine := "creado: " . FormatTime(, "dd/MM/yy HH:mm:ss")
     }
     
     ; Eliminar todos los archivos y subcarpetas
